@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Veilige en integere leer- en werkomgeving</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <div class="roles" aria-label="Rolkeuze">
+      <button class="role-card active" data-role="belangrijk">
+        <span class="board"><span class="color-stack"><i class="dot red"></i><i class="dot orange"></i><i class="dot green"></i></span></span>
+        <span class="role-text">Speelt belangrijke rol</span>
+      </button>
+      <button class="role-card" data-role="beperkt">
+        <span class="board"><span class="color-stack"><i class="dot red"></i><i class="dot orange"></i><i class="dot green"></i></span></span>
+        <span class="role-text">Speelt beperkte rol</span>
+      </button>
+      <button class="role-card" data-role="geen">
+        <span class="board"><span class="color-stack"><i class="dot red"></i><i class="dot orange"></i><i class="dot green"></i></span></span>
+        <span class="role-text">Speelt geen rol</span>
+      </button>
+    </div>
+
+    <div class="wheel-area">
+      <svg id="graph" viewBox="0 0 820 820" role="img" aria-label="Interactieve cirkel met elf thema's">
+        <g id="wheel">
+          <circle cx="410" cy="410" r="370" class="ring"/>
+          <circle cx="410" cy="410" r="322" fill="#fffdf7" stroke="#06364a" stroke-width="1.2"/>
+
+          <g id="sectors"></g>
+
+          <text x="410" y="38" class="number ring-title" text-anchor="middle">Sociaal &amp; Gedrag</text>
+          <text x="70" y="420" class="number ring-title vertical-left" transform="rotate(-86 70 420)" text-anchor="middle">Naleving &amp; Integriteit</text>
+          <text x="113" y="665" class="number ring-title" transform="rotate(-51 113 665)" text-anchor="middle">Onderzoek &amp; Kennis</text>
+          <text x="410" y="806" class="number ring-title" text-anchor="middle">Digitaal &amp; Informatie</text>
+          <text x="690" y="665" class="number ring-title" transform="rotate(51 690 665)" text-anchor="middle">Fysiek &amp; Omgeving</text>
+
+          <circle cx="410" cy="410" r="112" class="center-ring"/>
+          <circle cx="410" cy="410" r="96" class="center-ring-inner"/>
+          <text x="410" y="393" class="label" text-anchor="middle">Veilige en integere</text>
+          <text x="410" y="415" class="label" text-anchor="middle">leer- en</text>
+          <text x="410" y="437" class="label" text-anchor="middle">werkomgeving</text>
+
+          <g id="markers"></g>
+        </g>
+      </svg>
+      <div class="legend" aria-label="Legenda">
+        <div class="legend-item">
+          <span class="legend-board"><i class="dot red"></i></span>
+          <span class="legend-text">Groot gevolg</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-board"><i class="dot orange"></i></span>
+          <span class="legend-text">Gemiddeld gevolg</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-board"><i class="dot green"></i></span>
+          <span class="legend-text">Nauwelijks of geen gevolg</span>
+        </div>
+      </div>
+      <button id="reset-markers" class="reset-button" type="button">Posities resetten</button>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
