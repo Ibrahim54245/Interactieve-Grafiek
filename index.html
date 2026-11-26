@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- Laadscherm en startknop voor het openen van de interactieve grafiek. -->
   <div id="start-screen" class="start-screen" role="dialog" aria-label="Startscherm">
     <div class="start-card">
       <div class="loading-orbit" aria-hidden="true">
@@ -22,6 +23,7 @@
   </div>
 
   <main class="shell">
+    <!-- Drie rolkaarten met een eigen rood, oranje of groen gekleurde indicator. -->
     <div class="roles" aria-label="Rolkeuze">
       <button class="role-card active" data-role="belangrijk">
         <span class="board"><span class="color-stack"><i class="dot red"></i><i class="dot orange"></i><i class="dot green"></i></span></span>
@@ -37,6 +39,7 @@
       </button>
     </div>
 
+    <!-- Interactieve grafiek in de vorm van een cirkel met verschillende thema's. -->
     <div class="wheel-area">
       <svg id="graph" viewBox="0 0 820 820" role="img" aria-label="Interactieve cirkel met elf thema's">
         <g id="wheel">
@@ -63,20 +66,29 @@
       <button id="reset-markers" class="reset-button" type="button">Posities resetten</button>
     </div>
 
+    <!-- Legenda met één gekleurde dot naast elk gevolg. -->
     <aside class="legend" aria-label="Legenda">
       <div class="legend-item">
-        <i class="dot red"></i>
+        <i class="dot red legend-source" data-color="red" tabindex="0" aria-label="Sleep een rode bal naar een veld"></i>
         <span class="legend-text">Groot gevolg</span>
       </div>
       <div class="legend-item">
-        <i class="dot orange"></i>
+        <i class="dot orange legend-source" data-color="orange" tabindex="0" aria-label="Sleep een oranje bal naar een veld"></i>
         <span class="legend-text">Gemiddeld gevolg</span>
       </div>
       <div class="legend-item">
-        <i class="dot green"></i>
+        <i class="dot green legend-source" data-color="green" tabindex="0" aria-label="Sleep een groene bal naar een veld"></i>
         <span class="legend-text">Nauwelijks of geen gevolg</span>
       </div>
     </aside>
+
+    <!-- Cinematisch informatiepaneel dat verschijnt na het kiezen van een onderwerp. -->
+    <section id="topic-focus" class="topic-focus" aria-live="polite" aria-hidden="true">
+      <button id="close-topic" class="topic-close" type="button" aria-label="Onderwerp sluiten">×</button>
+      <span id="topic-number" class="topic-number">01</span>
+      <h2 id="topic-title">Onderwerp</h2>
+      <p id="topic-description">Selecteer een thema om meer informatie te bekijken.</p>
+    </section>
   </main>
 
   <script src="app.js"></script>

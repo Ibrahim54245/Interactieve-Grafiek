@@ -1,3 +1,4 @@
+/* Kleuren die overal in de grafiek, knoppen en indicatoren worden gebruikt. */
 :root {
   --navy: #092b3a;
   --red: #cf1016;
@@ -13,11 +14,14 @@ body {
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: #fff;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 232, 183, .28) 0, rgba(255, 232, 183, 0) 27%),
+    linear-gradient(135deg, #fff 0%, #fffdf8 50%, #fff 100%);
   font-family: "Segoe UI", Arial, sans-serif;
   color: var(--navy);
 }
 
+/* Hoofdindeling met rolkolom, grafiek en legenda. */
 .shell {
   width: min(98vw, 1500px);
   height: min(96vh, 900px);
@@ -25,8 +29,10 @@ body {
   grid-template-columns: 24% 58% 18%;
   align-items: center;
   perspective: 1400px;
+  border-radius: 34px;
 }
 
+/* Opmaak voor de drie rolkaarten aan de linkerkant. */
 .roles {
   height: 86%;
   display: flex;
@@ -34,6 +40,7 @@ body {
   justify-content: center;
   gap: 14px;
   padding-right: 12px;
+  filter: drop-shadow(0 12px 14px rgba(9,43,58,.035));
 }
 
 .role-card {
@@ -46,12 +53,12 @@ body {
   display: grid;
   grid-template-columns: 34% 66%;
   align-items: center;
-  gap: 6%;
+  gap: 16%;
   color: var(--navy);
   transition: .2s;
 }
 
-.role-card:nth-child(2) { grid-template-columns: 39% 61%; }
+.role-card:nth-child(2) { grid-template-columns: 50% 61%; }
 .role-card:nth-child(3) { grid-template-columns: 44% 56%; }
 
 .role-card::before { display: none; }
@@ -62,9 +69,10 @@ body {
   height: 78%;
   clip-path: polygon(0 24%,100% 0,100% 100%,0 78%);
   background: #ffc98a;
-  border: 1px solid #092b3a;
+  border: 1.5px solid #092b3a;
   filter: drop-shadow(0 4px 5px #092b3a18);
   box-shadow: inset 0 0 0 1px rgba(9,43,58,.08), 0 10px 18px rgba(9,43,58,.08);
+  overflow: hidden;
 }
 
 .role-card:nth-child(2) .board {
@@ -86,9 +94,15 @@ body {
   line-height: 1.05;
   font-weight: 600;
   text-align: left;
+  letter-spacing: -.02em;
+  text-wrap: balance;
 }
 
-.role-card.active .role-text { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 7px; }
+.role-card.active .role-text {
+  text-decoration: underline;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 9px;
+}
 
 .role-card .board > .dot {
   position: absolute;
@@ -120,12 +134,23 @@ body {
 
 .color-stack { display: flex; }
 
+/* Centrumgebied dat de interactieve cirkelgrafiek bevat. */
 .wheel-area {
   position: relative;
   height: 100%;
   display: grid;
   place-items: center;
   min-width: 0;
+}
+
+.wheel-area::before {
+  content: "";
+  position: absolute;
+  width: min(72%, 690px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(247,164,0,.09), transparent 68%);
+  pointer-events: none;
 }
 
 svg {
@@ -203,6 +228,8 @@ svg {
   stroke-width: 1.2;
 }
 
+/* Legenda stijlen. */
+/* Rechter legenda met één gekleurde dot per gevolg. */
 .legend {
   position: static;
   display: flex;
@@ -232,7 +259,23 @@ svg {
   display: block;
   border: 1px solid #082f3e;
   box-shadow: 0 2px 3px #092b3a18;
+  border-width: 1.5px;
+  box-shadow: 0 5px 10px rgba(9,43,58,.18), inset 0 2px 3px rgba(255,255,255,.35);
 }
+
+.legend-source {
+  cursor: grab;
+  touch-action: none;
+  transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s ease;
+}
+
+.legend-source:hover,
+.legend-source:active {
+  transform: scale(1.12);
+  box-shadow: 0 8px 14px rgba(9,43,58,.28);
+}
+
+.legend-source:active { cursor: grabbing; }
 
 .legend-text { line-height: 1.05; }
 
@@ -459,6 +502,8 @@ body { animation: pageEnter .7s ease-out both; }
 .role-card:nth-child(1) .dot:nth-child(3) { animation-delay: .75s; }
 
 .wheel-area > svg {
+  position: relative;
+  z-index: 1;
   transform-origin: center;
   animation: wheelEnter 1s cubic-bezier(.16,.85,.24,1) .15s both;
   filter: drop-shadow(0 18px 18px rgba(9,43,58,.12));
@@ -484,6 +529,69 @@ body { animation: pageEnter .7s ease-out both; }
 .reset-button { transition: opacity .25s ease, transform .25s ease, background .25s ease; }
 .reset-button.visible { transform: translateY(-4px); box-shadow: 0 8px 16px #092b3a20; }
 .reset-button:hover { transform: translateY(-5px) scale(1.04); }
+
+.topic-focus {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 40;
+  width: min(520px, 82vw);
+  min-height: 190px;
+  transform: translate(-50%, 230px) scale(.94);
+  opacity: 0;
+  visibility: hidden;
+  padding: 30px 58px 24px 36px;
+  border: 2px solid #092b3a;
+  border-radius: 28px;
+  background: rgba(255, 253, 247, .92);
+  box-shadow: 0 34px 90px rgba(9,43,58,.24), inset 0 1px 0 rgba(255,255,255,.85);
+  transition: transform .55s cubic-bezier(.16,.85,.24,1), opacity .35s ease, visibility .35s ease;
+}
+
+.topic-focus.is-open {
+  transform: translate(-50%, 0) scale(1);
+  opacity: 1;
+  visibility: visible;
+}
+
+.topic-number {
+  display: block;
+  color: #cf1016;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: .18em;
+}
+
+.topic-focus h2 {
+  margin: 7px 0 8px;
+  font-size: clamp(25px,3vw,38px);
+  line-height: 1;
+}
+
+.topic-focus p {
+  margin: 0;
+  max-width: 420px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.topic-close {
+  position: absolute;
+  right: 18px;
+  top: 16px;
+  width: 38px;
+  height: 38px;
+  border: 2px solid #092b3a;
+  border-radius: 50%;
+  background: #fff;
+  color: #092b3a;
+  font-size: 26px;
+  line-height: 30px;
+  cursor: pointer;
+  transition: transform .25s ease, background .25s ease;
+}
+
+.topic-close:hover { transform: rotate(90deg) scale(1.08); background: #ffe8b7; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; transition-duration: .01ms !important; }
