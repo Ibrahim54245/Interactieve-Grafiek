@@ -136,6 +136,18 @@ markerData.forEach((data, index) => {
   marker.dataset.defaultCy = startY;
   marker.dataset.index = index;
   marker.setAttribute('tabindex', '0');
+  marker.style.opacity = '0';
+  marker.style.transform = 'scale(0)';
+  marker.style.transformBox = 'fill-box';
+  marker.style.transformOrigin = 'center';
+
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      marker.style.transition = 'transform .55s cubic-bezier(.2,.9,.2,1.35), opacity .35s ease, r .2s ease';
+      marker.style.opacity = '1';
+      marker.style.transform = 'scale(1)';
+    }, 450 + index * 65);
+  });
 
   marker.addEventListener('pointerdown', event => {
     event.preventDefault();
@@ -171,9 +183,14 @@ markerData.forEach((data, index) => {
 });
 
 resetButton.addEventListener('click', () => {
-  markerElements.forEach(marker => {
-    marker.setAttribute('cx', marker.dataset.defaultCx);
-    marker.setAttribute('cy', marker.dataset.defaultCy);
+  markerElements.forEach((marker, index) => {
+    setTimeout(() => {
+      marker.style.transition = 'cx .45s cubic-bezier(.2,.8,.2,1), cy .45s cubic-bezier(.2,.8,.2,1), transform .35s ease';
+      marker.setAttribute('cx', marker.dataset.defaultCx);
+      marker.setAttribute('cy', marker.dataset.defaultCy);
+      marker.style.transform = 'scale(.88)';
+      setTimeout(() => marker.style.transform = 'scale(1)', 220);
+    }, index * 35);
   });
   resetButton.classList.remove('visible');
 });
