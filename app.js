@@ -195,6 +195,25 @@ resetButton.addEventListener('click', () => {
   resetButton.classList.remove('visible');
 });
 
+const startScreen = document.getElementById('start-screen');
+const startButton = document.getElementById('start-button');
+
+setTimeout(() => {
+  startButton.disabled = false;
+  startButton.classList.add('ready');
+}, 2900);
+
+startButton.addEventListener('click', () => {
+  startScreen.classList.add('is-hidden');
+  document.querySelector('.shell').setAttribute('aria-live', 'polite');
+});
+
+startScreen.addEventListener('transitionend', event => {
+  if (event.propertyName === 'opacity' && startScreen.classList.contains('is-hidden')) {
+    startScreen.remove();
+  }
+});
+
 document.querySelectorAll('.role-card').forEach(card => {
   card.addEventListener('click', () => {
     document.querySelectorAll('.role-card').forEach(item => item.classList.remove('active'));

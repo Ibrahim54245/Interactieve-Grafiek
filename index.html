@@ -7,6 +7,20 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div id="start-screen" class="start-screen" role="dialog" aria-label="Startscherm">
+    <div class="start-card">
+      <div class="loading-orbit" aria-hidden="true">
+        <span></span><span></span><span></span>
+        <div class="orbit-center"></div>
+      </div>
+      <p class="loading-label">Grafiek laden</p>
+      <div class="loading-track" aria-label="Laden"><div class="loading-progress"></div></div>
+      <button id="start-button" class="start-button" type="button" disabled>
+        <span>Start interactieve grafiek</span>
+      </button>
+    </div>
+  </div>
+
   <main class="shell">
     <div class="roles" aria-label="Rolkeuze">
       <button class="role-card active" data-role="belangrijk">
