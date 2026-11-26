@@ -18,10 +18,17 @@ const topics = [
 ];
 
 const markerData = [
-  [2,-40,'green'], [2,-16,'red'], [3,-8,'green'], [4,25,'green'],
-  [5,57,'red'], [6,62,'orange'], [7,82,'green'], [7,116,'red'],
-  [8,153,'green'], [9,181,'green'], [10,210,'orange'],
-  [10,226,'green'], [11,248,'red'], [11,258,'orange'], [11,268,'green']
+  [1,-73,'green'],
+  [2,-40,'red'],
+  [3,-8,'green'],
+  [4,25,'green'],
+  [5,57,'red'],
+  [6,90,'orange'],
+  [7,124,'red'],
+  [8,157,'green'],
+  [9,190,'green'],
+  [10,223,'green'],
+  [11,255,'red']
 ];
 
 function point(r, angle) {

@@ -22,7 +22,7 @@ body {
   width: min(98vw, 1500px);
   height: min(96vh, 900px);
   display: grid;
-  grid-template-columns: 24% 61% 15%;
+  grid-template-columns: 24% 58% 18%;
   align-items: center;
 }
 
@@ -85,27 +85,35 @@ body {
 
 .role-card.active .role-text { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 7px; }
 
-.color-stack {
+.role-card .board > .dot {
+  position: absolute;
+  right: 10%;
+  top: 50%;
+  width: clamp(32px,2.5vw,44px);
+  height: clamp(32px,2.5vw,44px);
+  transform: translateY(-50%);
+}
+
+.role-card .board > .color-stack {
   position: absolute;
   right: 8%;
   top: 50%;
+  width: clamp(32px,2.5vw,44px);
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 7px;
 }
 
-.dot {
-  width: clamp(29px,2.5vw,44px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 1px solid #082f3e;
-  box-shadow: 0 1px 2px #0002;
+.role-card .board > .color-stack > .dot {
+  position: static;
+  width: clamp(32px,2.5vw,44px);
+  height: clamp(32px,2.5vw,44px);
+  transform: none;
 }
 
-.dot.red { background: var(--red); }
-.dot.orange { background: var(--orange); }
-.dot.green { background: var(--green); }
+.color-stack { display: flex; }
 
 .wheel-area {
   position: relative;
@@ -193,19 +201,22 @@ svg {
   position: static;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  justify-content: center;
+  gap: 26px;
   align-self: center;
+  width: 100%;
+  padding-right: 8px;
 }
 
 .legend-item {
   display: grid;
-  grid-template-columns: 44px 1fr;
+  grid-template-columns: 44px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
-  font-size: clamp(14px,1.25vw,20px);
+  font-size: clamp(16px,1.35vw,22px);
   font-weight: 700;
-  white-space: normal;
+  white-space: nowrap;
   transform: none;
 }
 
@@ -213,17 +224,15 @@ svg {
   width: 44px;
   height: 44px;
   display: block;
+  border: 1px solid #082f3e;
+  box-shadow: 0 2px 3px #092b3a18;
 }
 
 .legend-text { line-height: 1.05; }
 
-.legend-board {
-  width: 46px;
-  height: 58px;
-}
-
+.legend-board,
 .legend-board .dot {
-  width: 32px;
+  display: none;
 }
 
 .reset-button {
@@ -243,6 +252,21 @@ svg {
 
 .reset-button.visible { opacity: 1; }
 .reset-button:hover { background: #ffe8b7; }
+
+.dot {
+  display: block;
+  width: clamp(29px,2.5vw,44px);
+  height: clamp(29px,2.5vw,44px);
+  flex: 0 0 auto;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid #082f3e;
+  box-shadow: 0 2px 3px #092b3a18;
+}
+
+.dot.red { background: #cf1016; }
+.dot.orange { background: #f7a400; }
+.dot.green { background: #22b982; }
 
 @media (max-width: 900px) {
   body { overflow: auto; }
