@@ -99,6 +99,8 @@ function createDefaultStats() {
     sessions: 0,
     topicOpens: 0,
     topicViews: Array(topics.length).fill(0),
+    topicRoles: Array(topics.length).fill(null),
+    topicConsequences: Array.from({ length: topics.length }, () => ({ red: 0, orange: 0, green: 0 })),
     markersPlaced: 0,
     resets: 0,
     consequences: { red: 0, orange: 0, green: 0 }
@@ -117,6 +119,15 @@ function normalizeStats(savedStats = {}) {
     markersPlaced: numberOrZero(savedStats.markersPlaced),
     resets: numberOrZero(savedStats.resets),
     topicViews: defaults.topicViews.map((_, index) => numberOrZero(savedStats.topicViews?.[index])),
+    topicRoles: defaults.topicRoles.map((_, index) =>
+      ['belangrijk', 'beperkt', 'geen'].includes(savedStats.topicRoles?.[index])
+        ? savedStats.topicRoles[index]
+        : null),
+    topicConsequences: defaults.topicConsequences.map((_, index) => ({
+      red: numberOrZero(savedStats.topicConsequences?.[index]?.red),
+      orange: numberOrZero(savedStats.topicConsequences?.[index]?.orange),
+      green: numberOrZero(savedStats.topicConsequences?.[index]?.green)
+    })),
     consequences: {
       red: numberOrZero(savedStats.consequences?.red),
       orange: numberOrZero(savedStats.consequences?.orange),
@@ -278,8 +289,57 @@ if (activeUser) {
   if (authStorageError) authMessage.textContent = authStorageError;
 }
 
-// De grafiek start bewust zonder geplaatste ballen. Nieuwe ballen komen uit de legenda.
-const markerData = [];
+const roleDefinitions = {
+  belangrijk: { label: 'Speelt belangrijke rol', color: 'red' },
+  beperkt: { label: 'Speelt beperkte rol', color: 'orange' },
+  geen: { label: 'Speelt geen rol', color: 'green' }
+};
+const consequenceRoles = { red: 'belangrijk', orange: 'beperkt', green: 'geen' };
+const legacyDefaultMarkerData = [
+  [2, -40, 'green'], [2, -16, 'red'], [3, -8, 'green'], [4, 25, 'green'],
+  [5, 57, 'red'], [6, 62, 'orange'], [7, 82, 'green'], [7, 116, 'red'],
+  [8, 153, 'green'], [9, 181, 'green'], [10, 210, 'orange'],
+  [10, 226, 'green'], [11, 248, 'red'], [11, 258, 'orange'], [11, 268, 'green']
+];
+const topicRoles = activeUser?.stats.topicRoles || Array(topics.length).fill(null);
+const topicConsequences = activeUser?.stats.topicConsequences ||
+  Array.from({ length: topics.length }, () => ({ red: 0, orange: 0, green: 0 }));
+const markerElements = [];
+let markersCleared = false;
+
+function annularSector(a, b, innerRadius, outerRadius) {
+  const [outerX1, outerY1] = point(outerRadius, a);
+  const [outerX2, outerY2] = point(outerRadius, b);
+  const [innerX1, innerY1] = point(innerRadius, a);
+  const [innerX2, innerY2] = point(innerRadius, b);
+  return `M${outerX1} ${outerY1} A${outerRadius} ${outerRadius} 0 0 1 ${outerX2} ${outerY2} L${innerX2} ${innerY2} A${innerRadius} ${innerRadius} 0 0 0 ${innerX1} ${innerY1} Z`;
+}
+
+function updateTopicRoleBands(topicIndex) {
+  document.querySelectorAll(`.role-band[data-topic="${topicIndex}"]`).forEach(band => {
+    const role = roleDefinitions[band.dataset.role];
+    band.classList.toggle('selected', topicRoles[topicIndex] === band.dataset.role);
+    band.setAttribute('aria-pressed', String(topicRoles[topicIndex] === band.dataset.role));
+    band.setAttribute('aria-label', `${getTopicTitle(topics[topicIndex])}: ${role.label}`);
+  });
+}
+
+function setTopicRole(topicIndex, role) {
+  topicRoles[topicIndex] = role;
+  if (activeUser) {
+    activeUser.stats.topicRoles = topicRoles;
+    saveDemoUsers();
+  }
+  updateTopicRoleBands(topicIndex);
+  resetButton.classList.toggle('visible', hasChoices());
+}
+
+function getTopicRoleDetail(topicIndex) {
+  const role = topicRoles[topicIndex];
+  return role
+    ? `Rol voor dit veld: ${roleDefinitions[role].label.toLowerCase()}.`
+    : 'Rol voor dit veld: nog niet ingesteld.';
+}
 
 function point(r, angle) {
   const radians = angle * Math.PI / 180;
@@ -314,10 +374,6 @@ function selectTopic(index) {
     sector.classList.toggle('active', i === index);
     sector.style.opacity = i === index ? '1' : '.38';
   });
-  document.querySelectorAll('.marker').forEach(marker => {
-    marker.style.opacity = Number(marker.dataset.topic) === index ? '1' : '.28';
-  });
-
   const topic = topics[index];
   const focus = document.getElementById('topic-focus');
   document.getElementById('topic-number').textContent = `THEMA ${String(topic.n).padStart(2, '0')}`;
@@ -341,12 +397,20 @@ function selectTopic(index) {
 
 function getTopicConsequenceDetail(topicIndex) {
   const counts = getConsequencesForTopic(topicIndex);
-  const total = counts.red + counts.orange + counts.green;
-  if (!total) {
-    return 'Nog geen gevolgen geplaatst. Mogelijke impact: groot, gemiddeld of nauwelijks/geen. Sleep een gekleurde bal naar dit veld.';
-  }
-
-  return `Groot gevolg: ${counts.red} | Gemiddeld gevolg: ${counts.orange} | Nauwelijks of geen gevolg: ${counts.green}`;
+  const consequenceNamesByColor = [
+    { color: 'red', name: 'rode', consequence: 'groot gevolg' },
+    { color: 'orange', name: 'gele', consequence: 'gemiddeld gevolg' },
+    { color: 'green', name: 'groene', consequence: 'nauwelijks of geen gevolg' }
+  ];
+  const details = consequenceNamesByColor
+    .filter(item => counts[item.color] > 0)
+    .map(item => `${counts[item.color]} ${item.name} ${counts[item.color] === 1 ? 'stip' : 'stippen'} (${item.consequence})`)
+    .join(', ')
+    .replace(/, ([^,]*)$/, ' en $1');
+  const consequenceDetail = details.length
+    ? `Gevolgstippen in dit veld: ${details}.`
+    : 'Nog geen gevolgstippen in dit veld. Sleep een gekleurde stip naar het veld.';
+  return `${consequenceDetail} ${getTopicRoleDetail(topicIndex)}`;
 }
 
 topics.forEach((topic, index) => {
@@ -379,6 +443,56 @@ topics.forEach((topic, index) => {
     if (event.key === 'Enter' || event.key === ' ') selectTopic(index);
   });
   document.getElementById('sectors').appendChild(sector);
+
+  const roleBands = [
+    { role: 'geen', innerRadius: 112, outerRadius: 182 },
+    { role: 'beperkt', innerRadius: 182, outerRadius: 252 },
+    { role: 'belangrijk', innerRadius: 252, outerRadius: 322 }
+  ];
+  roleBands.forEach(({ role, innerRadius, outerRadius }) => {
+    const definition = roleDefinitions[role];
+    const band = document.createElementNS(ns, 'path');
+    band.setAttribute('d', annularSector(topic.a, topic.b, innerRadius, outerRadius));
+    band.setAttribute('class', `role-band role-${role}`);
+    band.dataset.topic = index;
+    band.dataset.role = role;
+    band.setAttribute('role', 'button');
+    band.setAttribute('tabindex', '0');
+    band.setAttribute('aria-pressed', 'false');
+    band.setAttribute('aria-describedby', 'consequence-tooltip');
+
+    const showRoleTooltip = event => {
+      const state = topicRoles[index] === role ? 'Deze rol is ingesteld.' : 'Klik om deze rol voor dit veld in te stellen.';
+      showTooltip(event, getTopicTitle(topic), `${definition.label}. ${state}`);
+    };
+
+    band.addEventListener('pointerenter', showRoleTooltip);
+    band.addEventListener('pointermove', event => {
+      if (consequenceTooltip.classList.contains('is-visible')) showRoleTooltip(event);
+    });
+    band.addEventListener('pointerleave', hideTooltip);
+    band.addEventListener('focus', () => {
+      const rect = band.getBoundingClientRect();
+      showRoleTooltip({
+        clientX: rect.left + rect.width / 2,
+        clientY: rect.top + rect.height / 2
+      });
+    });
+    band.addEventListener('blur', hideTooltip);
+
+    function chooseRole(event) {
+      event.preventDefault();
+      setTopicRole(index, role);
+      showTooltip(event, getTopicTitle(topic), `${definition.label} ingesteld voor dit veld.`);
+    }
+
+    band.addEventListener('click', chooseRole);
+    band.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') chooseRole(event);
+    });
+    document.getElementById('sectors').appendChild(band);
+  });
+  updateTopicRoleBands(index);
   spoke(topic.a);
 
   const [labelX, labelY] = point(238, mid);
@@ -394,7 +508,7 @@ topics.forEach((topic, index) => {
     tspan.textContent = line;
     label.appendChild(tspan);
   });
-  document.getElementById('sectors').appendChild(label);
+  document.getElementById('topic-labels').appendChild(label);
 
   const [numberX, numberY] = point(286, mid);
   const number = document.createElementNS(ns, 'text');
@@ -409,16 +523,8 @@ topics.forEach((topic, index) => {
 const svg = document.getElementById('graph');
 const markerGroup = document.getElementById('markers');
 const resetButton = document.getElementById('reset-markers');
-const markerElements = [];
-let draggedMarker = null;
 const markerStorageKey = 'interactieve-grafiek-marker-posities';
 let statsPanelOpen = false;
-
-function getMarkerStorageKey() {
-  return activeUser
-    ? `${markerStorageKey}:${encodeURIComponent(activeUser.email)}`
-    : markerStorageKey;
-}
 
 function formatPlayTime(milliseconds) {
   const totalSeconds = Math.floor(milliseconds / 1000);
@@ -477,12 +583,34 @@ function recordTopicView(topicIndex) {
   renderStats();
 }
 
-function recordMarkerPlacement(color) {
-  if (!activeUser || !Object.hasOwn(activeUser.stats.consequences, color)) return;
+function recordMarkerPlacement(color, topicIndex = null) {
+  if (!Object.hasOwn(consequenceRoles, color)) return;
+  if (topicIndex !== null && topicConsequences[topicIndex]) {
+    topicConsequences[topicIndex][color]++;
+  }
+  if (!activeUser) return;
+  activeUser.stats.topicConsequences = topicConsequences;
   activeUser.stats.markersPlaced++;
   activeUser.stats.consequences[color]++;
   saveDemoUsers();
   renderStats();
+}
+
+function getConsequencesForTopic(topicIndex) {
+  const counts = { red: 0, orange: 0, green: 0 };
+  markerElements.forEach(marker => {
+    const position = { x: Number(marker.getAttribute('cx')), y: Number(marker.getAttribute('cy')) };
+    const target = getDropTarget(position);
+    if (target.topicIndex === topicIndex && Object.hasOwn(counts, marker.dataset.color)) {
+      counts[marker.dataset.color]++;
+    }
+  });
+  return counts;
+}
+
+function hasChoices() {
+  return markerElements.length > 0 || topicRoles.some(Boolean) ||
+    topicConsequences.some(counts => Object.values(counts).some(count => count > 0));
 }
 
 function commitPlayTime() {
@@ -537,6 +665,7 @@ const consequenceNames = {
   orange: 'Gemiddeld gevolg',
   green: 'Nauwelijks of geen gevolg'
 };
+const consequenceColorNames = { red: 'rode', orange: 'gele', green: 'groene' };
 
 const consequenceTooltip = document.getElementById('consequence-tooltip');
 
@@ -560,68 +689,40 @@ function hideTooltip() {
   consequenceTooltip.setAttribute('aria-hidden', 'true');
 }
 
-function getTopicIndexForMarker(marker) {
-  const x = Number(marker.getAttribute('cx'));
-  const y = Number(marker.getAttribute('cy'));
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-
-  let angle = Math.atan2(y - cy, x - cx) * 180 / Math.PI;
-  if (angle < -90) angle += 360;
-  return topics.findIndex(topic => angle >= topic.a && angle < topic.b);
+function normalizeFieldAngle(angle) {
+  return (angle % 360 + 360) % 360;
 }
 
-function getConsequencesForTopic(topicIndex) {
-  const counts = { red: 0, orange: 0, green: 0 };
-  markerElements.forEach(marker => {
-    if (getTopicIndexForMarker(marker) === topicIndex && counts[marker.dataset.color] !== undefined) {
-      counts[marker.dataset.color]++;
+function getBoundaryAngleAtPosition(position) {
+  const dx = position.x - cx;
+  const dy = position.y - cy;
+  for (const topic of topics) {
+    const radians = topic.a * Math.PI / 180;
+    const distance = Math.abs(dx * Math.sin(radians) - dy * Math.cos(radians));
+    const alongLine = dx * Math.cos(radians) + dy * Math.sin(radians);
+    if (distance <= 18 && alongLine >= 112 && alongLine <= outer) {
+      return normalizeFieldAngle(topic.a);
     }
-  });
-  return counts;
-}
-
-function addMarkerTooltip(marker) {
-  const showMarkerTooltip = event => {
-    const topicIndex = getTopicIndexForMarker(marker);
-    const topicName = topicIndex >= 0 ? getTopicTitle(topics[topicIndex]) : 'dit veld';
-    showTooltip(event, consequenceNames[marker.dataset.color], `Veld: ${topicName}`);
-  };
-
-  marker.addEventListener('pointerenter', showMarkerTooltip);
-  marker.addEventListener('pointermove', showMarkerTooltip);
-  marker.addEventListener('pointerleave', hideTooltip);
-  marker.addEventListener('focus', () => {
-    const rect = marker.getBoundingClientRect();
-    showTooltip({
-      clientX: rect.left + rect.width / 2,
-      clientY: rect.top + rect.height / 2
-    }, consequenceNames[marker.dataset.color], 'Geplaatst gevolg');
-  });
-  marker.addEventListener('blur', hideTooltip);
-}
-
-// Haal eerder opgeslagen markerposities op zodra de pagina wordt geladen.
-function getSavedMarkerPositions() {
-  try {
-    return JSON.parse(localStorage.getItem(getMarkerStorageKey())) || {};
-  } catch (error) {
-    return {};
   }
+  return null;
 }
 
-// Bewaar alle huidige markerposities in de browser.
-function saveMarkerPositions() {
-  const positions = markerElements.map(marker => ({
-    cx: marker.getAttribute('cx'),
-    cy: marker.getAttribute('cy'),
-    color: marker.dataset.color
-  })).filter(marker => marker.cx && marker.cy);
+function getDropTarget(position) {
+  const x = Number(position.x);
+  const y = Number(position.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return { topicIndex: null, boundaryAngle: null };
+  const dx = x - cx;
+  const dy = y - cy;
+  const radius = Math.hypot(dx, dy);
+  if (radius < 112 || radius > outer) return { topicIndex: null, boundaryAngle: null };
 
-  try {
-    localStorage.setItem(getMarkerStorageKey(), JSON.stringify(positions));
-  } catch (error) {
-    // Opslag kan worden geblokkeerd; de interactieve pagina blijft dan gewoon werken.
-  }
+  const boundaryAngle = getBoundaryAngleAtPosition({ x, y });
+  if (boundaryAngle !== null) return { topicIndex: null, boundaryAngle };
+
+  let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+  if (angle < -90) angle += 360;
+  const topicIndex = topics.findIndex(topic => angle >= topic.a && angle < topic.b);
+  return topicIndex < 0 ? { topicIndex: null, boundaryAngle: null } : { topicIndex, boundaryAngle: null };
 }
 
 function svgPoint(event) {
@@ -631,203 +732,212 @@ function svgPoint(event) {
   return point.matrixTransform(svg.getScreenCTM().inverse());
 }
 
-function defaultMarkerPosition(markerNumber, angle) {
-  const topic = topics[markerNumber - 1];
-  const mid = (topic.a + topic.b) / 2;
-  const spread = angle - mid;
-  const finalAngle = mid + spread * .25;
-  return point(markerNumber === 7 || markerNumber === 11 ? 208 : 196, finalAngle);
+function getMarkerStorageKey() {
+  return activeUser
+    ? `${markerStorageKey}:${encodeURIComponent(activeUser.email)}`
+    : markerStorageKey;
 }
 
-// Maak voor elk onderwerp een marker aan en voeg de sleepinteractie toe.
-markerData.forEach((data, index) => {
-  const [markerNumber, angle, color] = data;
-  const [startX, startY] = defaultMarkerPosition(markerNumber, angle);
-  const marker = document.createElementNS(ns, 'circle');
-  marker.setAttribute('cx', startX);
-  marker.setAttribute('cy', startY);
-  marker.setAttribute('r', 18);
-  marker.setAttribute('class', 'marker');
-  marker.setAttribute('fill', `var(--${color})`);
-  marker.dataset.topic = markerNumber - 1;
-  marker.dataset.defaultCx = startX;
-  marker.dataset.defaultCy = startY;
-  marker.dataset.index = index;
-  marker.setAttribute('tabindex', '0');
-  marker.style.opacity = '0';
-  marker.style.transform = 'scale(0)';
-  marker.style.transformBox = 'fill-box';
-  marker.style.transformOrigin = 'center';
-
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      marker.style.transition = 'transform .55s cubic-bezier(.2,.9,.2,1.35), opacity .35s ease, r .2s ease';
-      marker.style.opacity = '1';
-      marker.style.transform = 'scale(1)';
-    }, 450 + index * 65);
-  });
-
-  marker.addEventListener('pointerdown', event => {
-    event.preventDefault();
-    draggedMarker = marker;
-    marker.classList.add('dragging');
-    marker.setPointerCapture(event.pointerId);
-  });
-
-  marker.addEventListener('pointermove', event => {
-    if (draggedMarker !== marker) return;
-    const position = svgPoint(event);
-    marker.setAttribute('cx', position.x);
-    marker.setAttribute('cy', position.y);
-    resetButton.classList.add('visible');
-  });
-
-  function stopDragging(event) {
-    if (draggedMarker !== marker) return;
-    marker.classList.remove('dragging');
-    draggedMarker = null;
-    saveMarkerPositions();
+function saveMarkerPositions() {
+  const positions = markerElements.map(marker => ({
+    cx: marker.getAttribute('cx'),
+    cy: marker.getAttribute('cy'),
+    color: marker.dataset.color
+  }));
+  try {
+    const savedPositions = markersCleared && positions.length === 0
+      ? { cleared: true, markers: [] }
+      : positions;
+    localStorage.setItem(getMarkerStorageKey(), JSON.stringify(savedPositions));
+  } catch (error) {
+    showAccountMessage('Opslaan van de stippen is mislukt. Controleer of browseropslag beschikbaar is.');
   }
+}
 
-  marker.addEventListener('pointerup', stopDragging);
-  marker.addEventListener('pointercancel', stopDragging);
-  marker.addEventListener('click', event => {
-    event.stopPropagation();
-    selectTopic(markerNumber - 1);
+function getMarkerDetail(color, position) {
+  const target = getDropTarget(position);
+  const field = target.topicIndex === null ? 'onbekend' : getTopicTitle(topics[target.topicIndex]);
+  const colorName = consequenceColorNames[color];
+  return {
+    title: `${colorName[0].toUpperCase()}${colorName.slice(1)} stip`,
+    detail: `Deze ${colorName} stip ligt op het veld ${field}. ${consequenceNames[color]}.`
+  };
+}
+
+function showMarkerTooltip(event, marker) {
+  const detail = getMarkerDetail(marker.dataset.color, {
+    x: Number(marker.getAttribute('cx')),
+    y: Number(marker.getAttribute('cy'))
   });
+  marker.setAttribute('aria-label', detail.detail);
+  showTooltip(event, detail.title, detail.detail);
+}
 
-  markerGroup.appendChild(marker);
-  markerElements.push(marker);
-  addMarkerTooltip(marker);
-
-  const savedPositions = getSavedMarkerPositions();
-  const savedPosition = savedPositions[index];
-  marker.setAttribute('cx', savedPosition?.cx || startX);
-  marker.setAttribute('cy', savedPosition?.cy || startY);
-});
-
-// Maak een nieuwe bal vanuit de legenda en zet hem op de grafiek.
 function createPlacedMarker(color, position, shouldSave = true) {
   const marker = document.createElementNS(ns, 'circle');
   marker.setAttribute('cx', position.x);
   marker.setAttribute('cy', position.y);
   marker.setAttribute('r', 18);
-  marker.setAttribute('class', 'marker placed-marker');
-  marker.setAttribute('fill', `var(--${color})`);
-  marker.dataset.color = color;
+  marker.setAttribute('class', `marker ${color}`);
   marker.setAttribute('tabindex', '0');
-  marker.style.transformBox = 'fill-box';
-  marker.style.transformOrigin = 'center';
-  marker.style.transform = 'scale(.55)';
-  marker.style.transition = 'transform .28s cubic-bezier(.2,.9,.2,1.35), opacity .2s ease';
+  marker.dataset.color = color;
 
   let isDragging = false;
-
   marker.addEventListener('pointerdown', event => {
     event.preventDefault();
     event.stopPropagation();
     isDragging = true;
-    draggedMarker = marker;
     marker.classList.add('dragging');
     marker.setPointerCapture(event.pointerId);
   });
-
   marker.addEventListener('pointermove', event => {
-    if (!isDragging) return;
-    const point = svgPoint(event);
-    marker.setAttribute('cx', point.x);
-    marker.setAttribute('cy', point.y);
-    resetButton.classList.add('visible');
+    if (isDragging) {
+      const current = svgPoint(event);
+      marker.setAttribute('cx', current.x);
+      marker.setAttribute('cy', current.y);
+      resetButton.classList.add('visible');
+      return;
+    }
+    showMarkerTooltip(event, marker);
   });
 
-  function finishDrag(event) {
+  const finishDrag = event => {
     if (!isDragging) return;
     isDragging = false;
     marker.classList.remove('dragging');
-    draggedMarker = null;
-    if (event && marker.hasPointerCapture?.(event.pointerId)) marker.releasePointerCapture(event.pointerId);
+    if (event && marker.hasPointerCapture(event.pointerId)) marker.releasePointerCapture(event.pointerId);
     if (shouldSave) saveMarkerPositions();
-  }
-
+  };
   marker.addEventListener('pointerup', finishDrag);
   marker.addEventListener('pointercancel', finishDrag);
+  marker.addEventListener('pointerenter', event => showMarkerTooltip(event, marker));
+  marker.addEventListener('pointerleave', hideTooltip);
+  marker.addEventListener('focus', () => {
+    const rect = marker.getBoundingClientRect();
+    showMarkerTooltip({
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height / 2
+    }, marker);
+  });
+  marker.addEventListener('blur', hideTooltip);
+  marker.addEventListener('click', event => {
+    event.stopPropagation();
+    const target = getDropTarget({
+      x: Number(marker.getAttribute('cx')),
+      y: Number(marker.getAttribute('cy'))
+    });
+    if (target.topicIndex !== null) selectTopic(target.topicIndex);
+    else showMarkerTooltip(event, marker);
+  });
 
   markerGroup.appendChild(marker);
   markerElements.push(marker);
-  addMarkerTooltip(marker);
-  if (shouldSave) recordMarkerPlacement(color);
-  requestAnimationFrame(() => marker.style.transform = 'scale(1)');
-  if (shouldSave) saveMarkerPositions();
-  resetButton.classList.add('visible');
+  if (shouldSave) {
+    markersCleared = false;
+    saveMarkerPositions();
+    resetButton.classList.add('visible');
+  }
   return marker;
 }
 
-// Sleep een onbeperkte kopie van een legenda-dot naar elk veld op de grafiek.
+function loadSavedMarkerPositions() {
+  let savedPositions;
+  try {
+    const storedPositions = localStorage.getItem(getMarkerStorageKey());
+    savedPositions = storedPositions === null ? null : JSON.parse(storedPositions);
+  } catch (error) {
+    showAccountMessage('Opgeslagen stippen konden niet worden gelezen.');
+    return;
+  }
+  if (savedPositions?.cleared === true && Array.isArray(savedPositions.markers)) {
+    markersCleared = true;
+    return;
+  }
+  if (savedPositions === null) savedPositions = [];
+  if (!Array.isArray(savedPositions)) {
+    showAccountMessage('Opgeslagen stippen hebben een ongeldig formaat.');
+    return;
+  }
+  const hasLegacyDefaultSet = savedPositions.length >= legacyDefaultMarkerData.length &&
+    legacyDefaultMarkerData.every(([, , color], index) => savedPositions[index]?.color === color);
+  const positionsToRestore = hasLegacyDefaultSet
+    ? savedPositions.slice(legacyDefaultMarkerData.length)
+    : savedPositions;
+  positionsToRestore.forEach(position => {
+    const color = position?.color;
+    const x = Number(position?.cx);
+    const y = Number(position?.cy);
+    if (!Object.hasOwn(consequenceNames, color) || !Number.isFinite(x) || !Number.isFinite(y)) return;
+    createPlacedMarker(color, { x, y }, false);
+  });
+  if (positionsToRestore.length !== savedPositions.length) saveMarkerPositions();
+}
+
+// Sleep een gevolgkleur naar het wiel om op die plek een stip toe te voegen.
 document.querySelectorAll('.legend-source').forEach(source => {
-  source.addEventListener('pointerdown', event => {
-    event.preventEvent?.();
-  });
-
   source.addEventListener('dragstart', event => event.preventDefault());
-
-  source.addEventListener('pointermove', event => {
-    if (!source._dragging) return;
-    source._ghost.setAttribute('cx', svgPoint(event).x);
-    source._ghost.setAttribute('cy', svgPoint(event).y);
-  });
-
   source.addEventListener('pointerdown', event => {
     event.preventDefault();
     source._dragging = true;
     source.setPointerCapture(event.pointerId);
-    const rect = source.getBoundingClientRect();
-    const start = svgPoint({ clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 });
+    const start = svgPoint(event);
     source._ghost = document.createElementNS(ns, 'circle');
     source._ghost.setAttribute('cx', start.x);
     source._ghost.setAttribute('cy', start.y);
     source._ghost.setAttribute('r', 18);
-    source._ghost.setAttribute('class', 'marker ghost-marker');
-    source._ghost.setAttribute('fill', `var(--${source.dataset.color})`);
-    source._ghost.style.opacity = '.55';
+    source._ghost.setAttribute('class', `marker ${source.dataset.color} ghost-marker`);
     markerGroup.appendChild(source._ghost);
   });
-
-  function dropBall(event) {
+  source.addEventListener('pointermove', event => {
+    if (!source._dragging) return;
+    const position = svgPoint(event);
+    source._ghost.setAttribute('cx', position.x);
+    source._ghost.setAttribute('cy', position.y);
+  });
+  const finishDrop = event => {
     if (!source._dragging) return;
     source._dragging = false;
-    const position = svgPoint(event);
     source._ghost.remove();
-    createPlacedMarker(source.dataset.color, position);
-  }
-
-  source.addEventListener('pointerup', dropBall);
-  source.addEventListener('pointercancel', event => {
+    const position = svgPoint(event);
+    const target = getDropTarget(position);
+    if (target.topicIndex !== null || target.boundaryAngle !== null) {
+      const marker = createPlacedMarker(source.dataset.color, position);
+      recordMarkerPlacement(source.dataset.color, target.topicIndex);
+      showMarkerTooltip(event, marker);
+      return;
+    }
+    showTooltip(event, 'Kies een plek in de cirkel', 'Sleep de stip naar een onderwerpveld of naar een scheidslijn.');
+  };
+  source.addEventListener('pointerup', finishDrop);
+  source.addEventListener('pointercancel', () => {
     if (source._ghost) source._ghost.remove();
     source._dragging = false;
   });
 });
 
+loadSavedMarkerPositions();
+resetButton.classList.toggle('visible', hasChoices());
 resetButton.addEventListener('click', () => {
-  if (activeUser && markerElements.length) {
-    activeUser.stats.resets++;
+  if (activeUser && hasChoices()) activeUser.stats.resets++;
+  topicRoles.fill(null);
+  topicConsequences.forEach(counts => {
+    counts.red = 0;
+    counts.orange = 0;
+    counts.green = 0;
+  });
+  markerElements.splice(0).forEach(marker => marker.remove());
+  markersCleared = true;
+  saveMarkerPositions();
+  if (activeUser) {
+    activeUser.stats.topicRoles = topicRoles;
+    activeUser.stats.topicConsequences = topicConsequences;
     saveDemoUsers();
     renderStats();
   }
-  markerElements.forEach((marker, index) => {
-    setTimeout(() => {
-      marker.style.transform = 'scale(0)';
-      marker.style.opacity = '0';
-      setTimeout(() => marker.remove(), 280);
-    }, index * 25);
-  });
-  markerElements.length = 0;
+  topics.forEach((_, index) => updateTopicRoleBands(index));
   resetButton.classList.remove('visible');
-  try {
-    localStorage.removeItem(getMarkerStorageKey());
-  } catch (error) {
-    // Opslag kan worden geblokkeerd; de markers worden wel op het scherm gereset.
-  }
 });
+window.addEventListener('beforeunload', saveMarkerPositions);
 
 // Beheer het laadscherm en open daarna de interactieve grafiek.
 const startScreen = document.getElementById('start-screen');
@@ -868,34 +978,9 @@ startScreen.addEventListener('transitionend', event => {
   }
 });
 
-document.querySelectorAll('.role-card').forEach(card => {
-  card.addEventListener('click', () => {
-    document.querySelectorAll('.role-card').forEach(item => item.classList.remove('active'));
-    card.classList.add('active');
-  });
-});
-
 const topicFocus = document.getElementById('topic-focus');
 document.getElementById('close-topic').addEventListener('click', () => {
   topicFocus.classList.remove('is-open');
   topicFocus.setAttribute('aria-hidden', 'true');
   document.querySelectorAll('.sector').forEach(sector => sector.style.opacity = '1');
-  document.querySelectorAll('.marker').forEach(marker => marker.style.opacity = '1');
 });
-
-// Herstel eerder geplaatste ballen; zonder opgeslagen ballen begint de grafiek met nul.
-const savedPositions = getSavedMarkerPositions();
-if (Array.isArray(savedPositions)) {
-  savedPositions.forEach(saved => {
-    if (saved?.cx && saved?.cy && saved?.color) {
-      createPlacedMarker(saved.color, { x: saved.cx, y: saved.cy }, false);
-    }
-  });
-  resetButton.classList.toggle('visible', savedPositions.length > 0);
-}
-
-// Herstel eerder opgeslagen markerposities bij het laden van de pagina.
-// Markerposities zijn hierboven al hersteld via de opgeslagen ballenlijst.
-
-// Sla markerposities op bij het verlaten van de pagina.
-window.addEventListener('beforeunload', saveMarkerPositions);
