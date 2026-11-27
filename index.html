@@ -7,6 +7,34 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <section id="auth-screen" class="auth-screen" aria-labelledby="auth-title">
+    <div class="auth-card">
+      <span class="auth-kicker">INTERACTIEVE GRAFIEK</span>
+      <h1 id="auth-title">Welkom</h1>
+      <p class="auth-intro">Meld je aan om je voortgang en speeltijd bij te houden.</p>
+      <div class="auth-switch" role="tablist" aria-label="Accountactie">
+        <button id="login-tab" class="active" type="button" role="tab" aria-selected="true">Inloggen</button>
+        <button id="signup-tab" type="button" role="tab" aria-selected="false">Account maken</button>
+      </div>
+      <form id="login-form" class="auth-form">
+        <label for="login-email">E-mailadres</label>
+        <input id="login-email" name="email" type="email" autocomplete="username" required>
+        <label for="login-password">Wachtwoord</label>
+        <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+        <button class="auth-submit" type="submit">Inloggen</button>
+      </form>
+      <form id="signup-form" class="auth-form" hidden>
+        <label for="signup-email">E-mailadres</label>
+        <input id="signup-email" name="email" type="email" autocomplete="username" required>
+        <label for="signup-password">Wachtwoord (minimaal 8 tekens)</label>
+        <input id="signup-password" name="password" type="password" autocomplete="new-password" minlength="8" required>
+        <button class="auth-submit" type="submit">Account maken</button>
+      </form>
+      <p id="auth-message" class="auth-message" role="status" aria-live="polite"></p>
+      <p class="auth-disclaimer">Demo-account: gegevens worden alleen in deze browser opgeslagen. Geen echte beveiligde accounts of synchronisatie tussen apparaten.</p>
+    </div>
+  </section>
+
   <!-- Laadscherm en startknop voor het openen van de interactieve grafiek. -->
   <div id="start-screen" class="start-screen" role="dialog" aria-label="Startscherm">
     <div class="start-card">
@@ -14,7 +42,7 @@
         <span></span><span></span><span></span>
         <div class="orbit-center"></div>
       </div>
-      <p class="loading-label">Grafiek laden</p>
+      <p class="loading-label">Grafiek laden....</p>
       <div class="loading-track" aria-label="Laden"><div class="loading-progress"></div></div>
       <button id="start-button" class="start-button" type="button" disabled>
         <span>Start interactieve grafiek</span>
@@ -23,6 +51,13 @@
   </div>
 
   <main class="shell">
+    <div id="account-bar" class="account-bar">
+      <span id="account-name" class="account-name"></span>
+      <button id="stats-toggle" class="account-button" type="button" aria-expanded="false">Mijn statistieken</button>
+      <button id="logout-button" class="account-button account-logout" type="button">Uitloggen</button>
+    </div>
+    <div id="consequence-tooltip" class="consequence-tooltip" role="tooltip" aria-hidden="true"></div>
+
     <!-- Drie rolkaarten met een eigen rood, oranje of groen gekleurde indicator. -->
     <div class="roles" aria-label="Rolkeuze">
       <button class="role-card active" data-role="belangrijk">
@@ -82,14 +117,52 @@
       </div>
     </aside>
 
-    <!-- Cinematisch informatiepaneel dat verschijnt na het kiezen van een onderwerp. -->
+    <!-- Uitgebreide uitleg bij het gekozen onderwerp. -->
     <section id="topic-focus" class="topic-focus" aria-live="polite" aria-hidden="true">
       <button id="close-topic" class="topic-close" type="button" aria-label="Onderwerp sluiten">×</button>
       <span id="topic-number" class="topic-number">01</span>
       <h2 id="topic-title">Onderwerp</h2>
       <p id="topic-description">Selecteer een thema om meer informatie te bekijken.</p>
+      <div class="topic-details">
+        <section>
+          <h3>Wat valt hieronder?</h3>
+          <ul id="topic-examples"></ul>
+        </section>
+        <section>
+          <h3>Mogelijke gevolgen</h3>
+          <ul id="topic-consequences"></ul>
+        </section>
+        <section>
+          <h3>Wat kun je doen?</h3>
+          <ul id="topic-actions"></ul>
+        </section>
+      </div>
     </section>
   </main>
+
+  <aside id="stats-panel" class="stats-panel" aria-label="Mijn statistieken" hidden>
+    <button id="stats-close" class="stats-close" type="button" aria-label="Statistieken sluiten">×</button>
+    <span class="stats-kicker">JOUW VOORTGANG</span>
+    <h2>Mijn statistieken</h2>
+    <p id="stats-user" class="stats-user"></p>
+    <p id="stats-message" class="stats-message" role="status"></p>
+    <div class="stats-grid">
+      <div class="stat-card"><span>Speeltijd</span><strong id="stat-playtime">0 min</strong></div>
+      <div class="stat-card"><span>Speelsessies</span><strong id="stat-sessions">0</strong></div>
+      <div class="stat-card"><span>Onderwerpen geopend</span><strong id="stat-topic-opens">0</strong></div>
+      <div class="stat-card"><span>Unieke onderwerpen</span><strong id="stat-unique-topics">0 / 11</strong></div>
+      <div class="stat-card"><span>Gevolgen geplaatst</span><strong id="stat-markers">0</strong></div>
+      <div class="stat-card"><span>Grafiekresets</span><strong id="stat-resets">0</strong></div>
+    </div>
+    <h3>Gevolgen per impact</h3>
+    <div class="stats-severity">
+      <span>Groot<strong id="stat-red">0</strong></span>
+      <span>Gemiddeld<strong id="stat-orange">0</strong></span>
+      <span>Nauwelijks/geen<strong id="stat-green">0</strong></span>
+    </div>
+    <h3>Onderwerpen die je hebt bekeken</h3>
+    <ol id="topic-stats" class="topic-stats"></ol>
+  </aside>
 
   <script src="app.js"></script>
 </body>
